@@ -1,0 +1,41 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Byte-compiled / optimized / DLL files
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- SQLite / Data ---
+*.db
+*.sqlite3
+backend/menudb.db
+backend/menudb.db-journal
+
+# --- Project specific ---
+backend/menus/*.pdf
+backend/menus/
+*.log
+.cache/
+
+# --- Alembic cache ---
+alembic/*.log
+alembic/versions/__pycache__/
+backend/alembic/versions/__pycache__
+
+# --- Editor / OS ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
