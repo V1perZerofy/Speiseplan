@@ -1,4 +1,4 @@
-# --- Python ---
+# --- Python backend ---
 __pycache__/
 *.py[cod]
 *.pyo
@@ -10,32 +10,34 @@ __pycache__/
 venv/
 env/
 
-# Byte-compiled / optimized / DLL files
-*.egg-info/
-.eggs/
-build/
-dist/
-
-# --- SQLite / Data ---
+# SQLite / local data
 *.db
 *.sqlite3
-backend/menudb.db
-backend/menudb.db-journal
 
-# --- Project specific ---
-backend/menus/*.pdf
-backend/menus/
+# Logs and cache
 *.log
 .cache/
+*.tmp
 
-# --- Alembic cache ---
+# Alembic cache
 alembic/*.log
 alembic/versions/__pycache__/
-backend/alembic/versions/__pycache__
 
-# --- Editor / OS ---
+# Local PDFs (menus etc.)
+backend/menus/*.pdf
+
+# --- Frontend (Vite + Node) ---
+node_modules/
+dist/
+build/
+*.local
+*.env
+vite.config.*
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
 
+# --- OS / IDE files ---
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
+*.swp

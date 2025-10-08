@@ -32,28 +32,6 @@ def list_restaurants(db: Session = Depends(get_db)):
     restaurants = db.query(Restaurant).all()
     return [{"r_ID": r.r_ID, "Name": r.Name} for r in restaurants]
 
-@app.get("/menu/today")
-def get_today_menu(db: Session = Depends(get_db)):
-    today = date.today()
-    dishes = (
-        db.query(Speisen, Restaurant)
-        .join(Restaurant, Speisen.r_ID == Restaurant.r_ID)
-        .filter(Speisen.Datum == today)
-        .order_by(Restaurant.Name)
-        .all()
-    )
-    if not dishes:
-        raise HTTPException(status_code=404, detail="No dishes found for today")
-    return [
-        {
-            "Restaurant": r.Name,
-            "Name": s.Name,
-            "Preis": s.Preis,
-            "Datum": s.Datum,
-        }
-        for s, r in dishes
-    ]
-
 @app.get("/menu")
 def get_menu_for_day(
     date_str: str = Query(None, description="Date in YYYY-MM-DD format"),
@@ -80,10 +58,12 @@ def get_menu_for_day(
 
     return [
         {
-            "Restaurant": r.Name,
+            "s_ID": s.s_ID,
             "Name": s.Name,
             "Preis": s.Preis,
             "Datum": s.Datum,
+            "r_ID": r.r_ID,
+            "Restaurant": r.Name,
         }
         for s, r in dishes
     ]
