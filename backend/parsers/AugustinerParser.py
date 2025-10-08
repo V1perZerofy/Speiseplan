@@ -50,7 +50,7 @@ class AugustinerParser:
         for section, block in sections.items():
             # Split by € and clean up formatting
             items = [
-                item.strip().replace("\n", " ").replace("  ", " ")
+                item.strip().replace("\n", " ").replace("  ", " ").replace("❖", "")
                 for item in block.split("€")
                 if item.strip()
             ]
