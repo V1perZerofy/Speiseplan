@@ -32,7 +32,6 @@ dist/
 build/
 *.local
 *.env
-vite.config.*
 .DS_Store
 
 # --- OS / IDE files ---
