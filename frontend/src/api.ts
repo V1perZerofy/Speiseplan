@@ -20,8 +20,8 @@ export async function getRestaurants(): Promise<Restaurant[]> {
   return res.json();
 }
 
-export async function getMenu(date?: string): Promise<Dish[]> {
-  const url = date ? `${API_BASE}/menu?date_str=${date}` : `${API_BASE}/menu`;
+export async function getMenu(restaurant: string, date?: string): Promise<Dish[]> {
+  const url = date ? `${API_BASE}/menu?restaurant_str=${restaurant}&date_str=${date}` : `${API_BASE}/menu`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch menu");
   return res.json();

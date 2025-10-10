@@ -35,6 +35,7 @@ def list_restaurants(db: Session = Depends(get_db)):
 @app.get("/menu")
 def get_menu_for_day(
     date_str: str = Query(None, description="Date in YYYY-MM-DD format"),
+    restaurant_str: str = Query(None, description="Restaurant name"),
     db: Session = Depends(get_db)
 ):
     if date_str:
@@ -45,16 +46,26 @@ def get_menu_for_day(
     else:
         target_date = date.today()
 
+    if restaurant_str:
+        restaurant = db.query(Restaurant).filter(Restaurant.Name == restaurant_str).first()
+        if not restaurant:
+            raise HTTPException(status_code=400, detail=f"Invalid restaurant name: {restaurant_str}")
+    else:
+        restaurant = db.query(Restaurant).filter(Restaurant.Name == "Augustiner").first()
+        if not restaurant:
+            raise HTTPException(status_code=404, detail="Default restaurant 'Augustiner' not found")
+
     dishes = (
         db.query(Speisen, Restaurant)
         .join(Restaurant, Speisen.r_ID == Restaurant.r_ID)
         .filter(Speisen.Datum == target_date)
+        .filter(Restaurant.r_ID == restaurant.r_ID)
         .order_by(Restaurant.Name)
         .all()
     )
 
     if not dishes:
-        raise HTTPException(status_code=404, detail=f"No dishes found for {target_date}")
+        raise HTTPException(status_code=404, detail=f"No dishes found for {restaurant.Name} on {target_date}")
 
     return [
         {
@@ -67,3 +78,4 @@ def get_menu_for_day(
         }
         for s, r in dishes
     ]
+

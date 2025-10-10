@@ -1,5 +1,5 @@
-import pdfplumber
-import re
+import pdfplumber 
+import re 
 import datetime
 from backend.database import SessionLocal
 from backend.models import Speisen, Restaurant
@@ -12,7 +12,6 @@ class AugustinerParser:
 
 
     def remove_weekdays(self, text: str) -> str:
-        """Removes weekday names from text."""
         WEEKDAY_PATTERN = re.compile(
             r"\b(?:Mo|Di|Mi|Do|Fr|Sa|So|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag"
             r"|Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)\b",
@@ -20,8 +19,19 @@ class AugustinerParser:
         )
         return WEEKDAY_PATTERN.sub("", text).strip()
 
+    def clean_text(self, text: str) -> str:
+        text = self.remove_weekdays(text)
+
+        text = re.sub(r"\b\d{1,2}\.\s*\w+\s*\d{4}\b", "", text)
+        text = re.sub(r"\b\d{1,2}\.\d{1,2}\.\d{4}\b", "", text)
+
+        text = re.sub(r"Mittagstisch.*?Uhr", "", text, flags=re.IGNORECASE)
+
+        text = re.sub(r"^[, ]+", "", text, flags=re.MULTILINE)
+
+        return text.strip()
+
     def read_pdf(self) -> str:
-        """Reads text content from all pages of the menu PDF."""
         text = ""
         with pdfplumber.open(self.pdf_path) as pdf:
             for page in pdf.pages:
@@ -30,9 +40,8 @@ class AugustinerParser:
 
 
     def process_menu(self, text: str) -> dict[str, list[str]]:
-        """Splits text into sections and dish entries."""
+        text = self.clean_text(text)
         sections = {}
-        text = self.remove_weekdays(text)
 
         if "TAGESKARTE" in text:
             mittagstisch, rest = text.split("TAGESKARTE", 1)
