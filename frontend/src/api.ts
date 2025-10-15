@@ -1,17 +1,17 @@
 const API_BASE = "https://speiseplan-backend.onrender.com";
 
 export class Dish {
-  s_ID: number;
-  Name: string;
-  Preis: number;
-  Datum: string;
-  r_ID: number;
-  Restaurant: string;
+  s_ID!: number;
+  Name!: string;
+  Preis!: number;
+  Datum!: string;
+  r_ID!: number;
+  Restaurant!: string;
 };
 
 export class Restaurant {
-  r_ID: number;
-  Name: string;
+  r_ID!: number;
+  Name!: string;
 };
 
 export async function getRestaurants(): Promise<Restaurant[]> {
