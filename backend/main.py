@@ -1,15 +1,20 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Header, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 from backend.database import SessionLocal
 from backend.models import Speisen, Restaurant
 from fastapi.middleware.cors import CORSMiddleware
+from backend.parsers.AugustinerParser import AugustinerParser
+from backend.parsers.WeitblickParser import WeitblickParser
+from backend.scripts.scraper_augustiner import download_augustiner_menu
+from backend.scripts.scraper_weitblick import download_weitblick_menu
+import subprocess
 
 app = FastAPI(title="Speisekarten API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["http://localhost:5173"] for Vite dev server
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,6 +26,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def run_all_updates():
+    try:
+
+        download_augustiner_menu()
+        download_weitblick_menu()
+        
+        AugustinerParser("backend/menus/TageskarteAugustiner.pdf").run()
+        WeitblickParser("backend/menus/Wochenkarte.pdf").run()
+
+    except Exception as e:
+        print(f"[Update Error] {e}")
 
 
 @app.get("/")
@@ -79,3 +96,10 @@ def get_menu_for_day(
         for s, r in dishes
     ]
 
+@app.post("/update-menus")
+def update_menus(background_tasks: BackgroundTasks, x_api_key: str = Header(None)):
+    if x_api_key != "super-secret-key":
+        raise HTTPException(status_code=403, detail="forbidden")
+
+    run_all_updates()
+    return {"status": "update started"}
