@@ -10,96 +10,60 @@ class WeitblickParser:
         self.pdf_path = pdf_path
         self.restaurant_name = "Weitblick"
         self.debug = debug
-
-    def remove_weekdays(self, text: str) -> str:
-        WEEKDAY_PATTERN = re.compile(
-            r"\b(?:Mo|Di|Mi|Do|Fr|Sa|So|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag"
-            r"|Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)\b",
-            re.IGNORECASE,
-        )
-        return WEEKDAY_PATTERN.sub("", text).strip()
-
-    def clean_text(self, text: str) -> str:
-        """Remove restaurant header, footer text, and redundant parts."""
-        text = re.sub(r"WEITBLICK.*?Market", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"Von\s+\d{1,2}\.\s*\w+\s+bis\s+\d{1,2}\.\s*\w+", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"Tagesaktuelle.*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"Ab sofort.*Barzahlung.*", "", text, flags=re.IGNORECASE)
-        text = self.remove_weekdays(text)
-        return text.strip()
-
-    def crop_pdf(self) -> dict[str, list[str]]:
+        
+    def read_rectangles(self, rects):
         doc = pymupdf.open(self.pdf_path)
         page = doc[0]
-        rect = page.rect
+        menu = []
+        for rect in rects:
+            text = page.get_textbox(rect)
+            menu.append(text)
+        return menu
+
+    def get_anchors(self):
+        WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"]
+        doc = pymupdf.open(self.pdf_path)
+        page = doc[0]
+        all_y0 = []
+        all = []
+        res = []
+        for day in WEEKDAYS:
+            matches = page.search_for(day)
+            for i, match in enumerate(matches):
+                all.append(match)
+                all_y0.append(match.y0)
+        avg_y0 = sum(all_y0) / len(all_y0)
+        for match in all:
+            if -10 < (match.y0 - avg_y0) < 10:
+                tmp = ((match.x0 + match.x1) / 2, match.y1)
+                res.append(tmp)
+        return res
+
+    def build_rects(self, anchors):
+        res = []
+        for anchor in anchors:
+            tmp = pymupdf.Rect(int(anchor[0]) - 76, int(anchor[1]) + 1, int(anchor[0]) + 76, 497)
+            res.append(tmp)
+        return res
+
+    def cleanup_menu(self, day_menus):
         structured_menu = {}
-
-        # tuned margins for Weitblick layout
-        top_margin = 96
-        bottom_margin = 44
-        horizontal_margin = 60
-        between_margin = 0
-        width_per_day = 173
-        print(rect.width)
-        for i in range(5):
-            left = rect.x0 + horizontal_margin + i * width_per_day - (between_margin if i > 0 else 0)
-            right = left + width_per_day + (between_margin if i < 4 else 0)
-            top = rect.y0 + top_margin
-            bottom = rect.y1 - bottom_margin
-            area = pymupdf.Rect(left, top, right, bottom)
-
-            blocks = [
-                b for b in page.get_text("blocks")
-                if b[0] < area.x1 and b[2] > area.x0 and b[1] < area.y1 and b[3] > area.y0
-            ]
-            blocks.sort(key=lambda b: (b[1], b[0]))
-            cropped_text = "\n".join([b[4] for b in blocks])
-
-            cropped_text = self.clean_text(cropped_text)
-
+        pattern = r"(.*?\d{1,3}(?:[.,]\d{2})\s*€?)"
+        for i, day_menu in enumerate(day_menus):
+            structured_menu[i] = []
+            day_menu = day_menu.strip().replace("€", "").replace("\n", ", ").replace(" | ", ", ").replace("  ", " ").replace(" ,", ",").replace("1,50m", "")
             if self.debug:
-                print(f"===== DAY {i+1} =====")
-                print(cropped_text)
-                print("=====================\n")
-            
-            cropped_text = self.remove_weekdays(cropped_text)
+                print(f"__________________{i}___________")
+                print(day_menu)
+                print("_________________________________")
+            parts = re.split(pattern, day_menu)
 
-            # dish-level cleanup restored
-            parts = re.split(r'(?=\d{1,2)[.,]\d{2}\s*€', cropped_text)
-            
-            items = []
             for part in parts:
-                cleaned = (part.strip()
-                           .replace("\n", " ")
-                           .replace(" | ", ", ")
-                           .replace("  ", " ")
-                )
-                if cleaned:
-                    items.append(cleaned)
-
-
-            day_name = f"Day {i+1}"
-            structured_menu[day_name] = []
-            
-            if items and "salatbar" in items[0].lower():
-                try:
-                    for j in range(min(2, len(items))):
-                        parts = items[j].split()
-                        if len(parts) >= 2:
-                            price = " ".join(parts[-2:]) + "€"
-                            structured_menu[day_name].append(f"Salatbar {price}")
-                except Exception:
-                    pass
-                start_index = 2
-            else:
-                start_index = 0
-
-
-            for entry in items[start_index:]:
-                structured_menu[day_name].append(entry + "€")
-
+                if part != "":
+                    part = re.sub(r"^[,\s]+", "", part)
+                    structured_menu[i].append(part)
         return structured_menu
-
+            
     def split_name_price(self, s: str) -> tuple[str, float]:
         m = re.search(r"(\d{1,3}[.,]\d{2})\s*€?", s)
         if not m:
@@ -108,7 +72,7 @@ class WeitblickParser:
         name = s[: m.start()].strip()
         return name, price
 
-    def write_to_db(self, menu: dict[str, list[str]]):
+    def write_to_db(self, menu: dict[int, list[str]]):
         db = SessionLocal()
         restaurant = db.query(Restaurant).filter_by(Name=self.restaurant_name).first()
         if not restaurant:
@@ -117,11 +81,10 @@ class WeitblickParser:
             db.commit()
             db.refresh(restaurant)
 
-        for day, items in menu.items():
+        for i, items in menu.items():
             for item in items:
                 name, price = self.split_name_price(item)
-                day_number = int(day.split(" ")[1]) - 1
-                dish_date = datetime.date.today() + datetime.timedelta(days=day_number)
+                dish_date = datetime.date.today() + datetime.timedelta(days=i)
                 dish = Speisen(
                     Name=name,
                     Preis=price,
@@ -134,14 +97,11 @@ class WeitblickParser:
         db.close()
         print(f"Saved weekly menu for {self.restaurant_name}")
 
+
     def run(self):
-        print(f"Parsing {self.pdf_path} ...")
-        menu = self.crop_pdf()
-        self.write_to_db(menu)
-        print(f"Completed parsing for {self.restaurant_name}")
+        anchors = self.get_anchors()
+        self.write_to_db(self.cleanup_menu(self.read_rectangles(self.build_rects(anchors))))
 
 
 if __name__ == "__main__":
-    parser = WeitblickParser("backend/menus/Wochenkarte.pdf", debug=True)
-    parser.run()
-
+    WeitblickParser("backend/menus/Wochenkarte.pdf", False).run()
