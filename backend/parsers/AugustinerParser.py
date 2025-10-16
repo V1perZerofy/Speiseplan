@@ -45,25 +45,20 @@ class AugustinerParser:
 
         if "TAGESKARTE" in text:
             mittagstisch, rest = text.split("TAGESKARTE", 1)
-            sections["Mittagstisch"] = mittagstisch.strip()
-            if "Dessert" in rest:
-                tageskarte, dessert = rest.split("Dessert", 1)
-                sections["Tageskarte"] = tageskarte.strip()
-                sections["Dessert"] = dessert.strip()
-            else:
-                sections["Tageskarte"] = rest.strip()
+            essen, trinken = mittagstisch.split(":")
+            sections["Essen"] = essen.strip()
+            sections["Getränke"] = trinken.strip()
         else:
             sections["All"] = text.strip()
-
+        
+        
         structured = {}
         for section, block in sections.items():
             # Split by € and clean up formatting
             items = [
-                item.strip().replace("\n", " ").replace("  ", " ").replace("❖", "")
-                for item in block.split("€")
-                if item.strip()
+                item.strip().replace("\n", " ").replace("  ", " ").replace("❖", "") for item in block.split("€") if item.strip()
             ]
-            structured[section] = [item + " €" for item in items]
+            structured[section] = [item + " €" for item in items if "Verbindung" not in item]
         return structured
 
 

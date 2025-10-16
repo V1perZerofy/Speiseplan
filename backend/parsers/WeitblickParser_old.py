@@ -6,10 +6,9 @@ from backend.models import Speisen, Restaurant
 
 
 class WeitblickParser:
-    def __init__(self, pdf_path: str, debug: bool = False):
+    def __init__(self, pdf_path: str):
         self.pdf_path = pdf_path
         self.restaurant_name = "Weitblick"
-        self.debug = debug
 
     def remove_weekdays(self, text: str) -> str:
         WEEKDAY_PATTERN = re.compile(
@@ -19,83 +18,70 @@ class WeitblickParser:
         )
         return WEEKDAY_PATTERN.sub("", text).strip()
 
-    def clean_text(self, text: str) -> str:
-        """Remove restaurant header, footer text, and redundant parts."""
-        text = re.sub(r"WEITBLICK.*?Market", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"Von\s+\d{1,2}\.\s*\w+\s+bis\s+\d{1,2}\.\s*\w+", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"Tagesaktuelle.*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"Ab sofort.*Barzahlung.*", "", text, flags=re.IGNORECASE)
-        text = self.remove_weekdays(text)
-        return text.strip()
-
     def crop_pdf(self) -> dict[str, list[str]]:
         doc = pymupdf.open(self.pdf_path)
         page = doc[0]
         rect = page.rect
         structured_menu = {}
+        top_margin = 100
+        bottom_margin = 80
+        horizontal_margin = 30 #e.g. left right margin
+        between_margin = 15
+        width_per_day = (rect.width - horizontal_margin * 2) / 5
 
-        # tuned margins for Weitblick layout
-        top_margin = 96
-        bottom_margin = 44
-        horizontal_margin = 60
-        between_margin = 0
-        width_per_day = 173
-        print(rect.width)
+
+
         for i in range(5):
             left = rect.x0 + horizontal_margin + i * width_per_day - (between_margin if i > 0 else 0)
             right = left + width_per_day + (between_margin if i < 4 else 0)
             top = rect.y0 + top_margin
             bottom = rect.y1 - bottom_margin
-            area = pymupdf.Rect(left, top, right, bottom)
+            new_rect = pymupdf.Rect(left, top, right, bottom)
 
-            blocks = [
-                b for b in page.get_text("blocks")
-                if b[0] < area.x1 and b[2] > area.x0 and b[1] < area.y1 and b[3] > area.y0
+            blocks = page.get_text("blocks")
+            blocks_in_area = [
+                b for b in blocks if b[0] >= new_rect.x0 and b[2] <= new_rect.x1 and b[1] >= new_rect.y0 and b[3] <= new_rect.y1
             ]
-            blocks.sort(key=lambda b: (b[1], b[0]))
-            cropped_text = "\n".join([b[4] for b in blocks])
+            blocks_in_area.sort(key=lambda b: (b[1], b[0]))
+            cropped_text = "\n".join([b[4] for b in blocks_in_area])
+            print(f"=====Day {i}=====")
+            print(cropped_text)
+            print("==================")
 
-            cropped_text = self.clean_text(cropped_text)
-
-            if self.debug:
-                print(f"===== DAY {i+1} =====")
-                print(cropped_text)
-                print("=====================\n")
-            
             cropped_text = self.remove_weekdays(cropped_text)
-
-            # dish-level cleanup restored
-            parts = re.split(r'(?=\d{1,2)[.,]\d{2}\s*€', cropped_text)
-            
-            items = []
-            for part in parts:
-                cleaned = (part.strip()
-                           .replace("\n", " ")
-                           .replace(" | ", ", ")
-                           .replace("  ", " ")
-                )
-                if cleaned:
-                    items.append(cleaned)
-
+            items = [
+                item.strip()
+                    .replace("\n", " ")
+                    .replace("  ", " ")
+                    .replace(" I ", ", ")
+                for item in cropped_text.split("€")
+                if item.strip()
+            ]
 
             day_name = f"Day {i+1}"
             structured_menu[day_name] = []
-            
-            if items and "salatbar" in items[0].lower():
+            if "salatbar" in items[0].lower():
                 try:
-                    for j in range(min(2, len(items))):
-                        parts = items[j].split()
-                        if len(parts) >= 2:
-                            price = " ".join(parts[-2:]) + "€"
-                            structured_menu[day_name].append(f"Salatbar {price}")
+                    salatbar = (
+                        "Salatbar "
+                        + items[0].split(" ")[-2]
+                        + " "
+                        + items[0].split(" ")[-1]
+                        + "€"
+                    )
+                    salatbar1 = (
+                        "Salatbar "
+                        + items[1].split(" ")[-2]
+                        + " "
+                        + items[1].split(" ")[-1]
+                        + "€"
+                    )
+                    structured_menu[day_name].append(salatbar)
+                    structured_menu[day_name].append(salatbar1)
                 except Exception:
                     pass
-                start_index = 2
-            else:
-                start_index = 0
 
-
-            for entry in items[start_index:]:
+            for entry in items[2:]:
                 structured_menu[day_name].append(entry + "€")
 
         return structured_menu
@@ -142,6 +128,6 @@ class WeitblickParser:
 
 
 if __name__ == "__main__":
-    parser = WeitblickParser("backend/menus/Wochenkarte.pdf", debug=True)
+    parser = WeitblickParser("backend/menus/Wochenkarte.pdf")
     parser.run()
 
