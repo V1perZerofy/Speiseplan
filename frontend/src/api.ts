@@ -1,4 +1,4 @@
-const API_BASE = "https://speiseplan-backend.onrender.com";
+const API_BASE = "http://127.0.0.1:8000";
 
 export class Dish {
   s_ID!: number;

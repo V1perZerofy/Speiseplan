@@ -60,7 +60,8 @@ class WeitblickParser:
 
             for part in parts:
                 if part != "":
-                    part = re.sub(r"^[,\s]+", "", part)
+                    part = re.sub(r"^[,\s]+|[,\s]+$", "", part)
+                    part = part.rstrip(",")
                     structured_menu[i].append(part)
         return structured_menu
             
@@ -84,7 +85,8 @@ class WeitblickParser:
         for i, items in menu.items():
             for item in items:
                 name, price = self.split_name_price(item)
-                dish_date = datetime.date.today() + datetime.timedelta(days=i)
+                today = datetime.date.today()
+                dish_date =  today - datetime.timedelta(days=today.weekday()) + datetime.timedelta(days=i)
                 dish = Speisen(
                     Name=name,
                     Preis=price,

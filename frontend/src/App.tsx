@@ -21,6 +21,14 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<string>(
     () => new Date().toISOString().split("T")[0]
   );
+  const changeDay = (offset: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + offset);
+    setSelectedDate(newDate.toISOString().split("T")[0]);
+  };
+  const setToday = () => {
+    setSelectedDate(new Date().toISOString().split("T")[0]);
+  };
   const [selectedRestaurant, setSelectedRestaurant] = useState<string>(
     () => "Augustiner"
   );
@@ -89,7 +97,14 @@ function App() {
                 {r.Name}
               </li>
             ))}
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mb-4 p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
+            <li>
+              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mb-4 p-2 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"/>
+            </li>
+            <li>
+              <button onClick={() => changeDay(-1)} className="px-3 py-1 rounded text-gray-900 dark:text-gray-100 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"> - </button>
+              <button onClick={() => setToday()} className="px-3 py-1 rounded text-gray-900 dark:text-gray-100 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"> Heute </button>
+              <button onClick={() => changeDay(1)} className="px-3 py-1 rounded text-gray-900 dark:text-gray-100 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"> + </button>
+            </li>
           </ul>
         </div>
         <button
