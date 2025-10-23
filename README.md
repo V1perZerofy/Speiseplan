@@ -1,6 +1,6 @@
 # Web Speiseplan München
 
-## Instalation and setup 
+## Installation and setup 
 
 ```bash
 git clone https://github.com/V1perZerofy/Speiseplan.git
